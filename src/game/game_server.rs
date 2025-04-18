@@ -728,10 +728,8 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Main receive loop
     let mut buf = [0u8; 1024];
 
-    let mut interval = time::interval(Duration::from_millis(CONST::GAME_LOOP_DELAY as u64));
     
     loop {
-        interval.tick().await;
 
         println!("[!]: Starting receving data!");
         let (size, addr) = socket.recv_from(&mut buf).await?;
