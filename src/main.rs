@@ -2,7 +2,7 @@ use slither_io_server::models::{bait, snake};
 use slither_io_server::game::listen_server;
 use std::env;
 
-#[tokio::main]
+#[tokio::main(worker_threads=1)]
 async fn main() {
     // Set up logging
     env::set_var("RUST_LOG", "info");
