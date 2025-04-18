@@ -75,9 +75,14 @@ async fn game_loop(socket: Arc<UdpSocket>, tx: UdpSender) {
     println!("Game loop started");
     
     let mut interval = time::interval(Duration::from_millis(CONST::GAME_LOOP_DELAY as u64));
-    
+    let mut last_time = SystemTime::now();
     loop {
         interval.tick().await;
+        let cur_time = SystemTime::now();
+        let mili = cur_time.duration_since(last_time).unwrap().as_millis();
+
+        println!("Ticked:{}", mili);
+        last_time = cur_time;
         
         let mut new_bait_arr = Vec::new();
         let mut msg_new_bait_arr = String::new();
