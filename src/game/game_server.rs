@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use uuid::Uuid;
-use rand::Rng;
+use rand::prelude::*;
 use std::time::SystemTime;
 
 // UDP packet structure
@@ -355,7 +355,7 @@ async fn game_loop(socket: Arc<UdpSocket>, tx: UdpSender) {
                     let _ = tx.send(UdpPacket {
                         addr: player_i.addr,
                         data: msg_update_player_head.into_bytes(),
-                    }).await;
+                    });
                 }
             }
         }
@@ -562,10 +562,9 @@ async fn create_player(addr: SocketAddr, tx: mpsc::Sender<UdpPacket>) -> String 
     println!("New player created: {}", player_id);
     
     // Create a new snake
-    let mut rng = rand::thread_rng();
     let player_snake = snake::create(
         CONST::SNAKE_INITIAL_LENGTH as f64,
-        rng.gen_range(0..CONST::SNAKE_SKIN_COLOR_RANGE),
+        rand::random_range(0..CONST::SNAKE_SKIN_COLOR_RANGE),
         CONST::SNAKE_SPEED
     );
     
@@ -713,12 +712,23 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Start the game loop
     let game_loop_socket = socket.clone();
     let game_loop_tx = tx.clone();
+    let sender_socket = socket.clone();
+
+    let mut buf = [0u8; 1024];
     tokio::spawn(async move {
-        game_loop(game_loop_socket, game_loop_tx).await;
+
+        while let (size, addr) = socket.recv_from(&mut buf).await.unwrap() {
+            if size > 0 {
+                let rx_data = &buf[..size];
+                println!("Going to process packet");
+                process_packet(rx_data, addr, &tx).await;
+            } else {
+                println!("Error: no data received.");
+            }
+        }
     });
     
     // Start the packet sender task
-    let sender_socket = socket.clone();
     tokio::spawn(async move {
         while let Some(packet) = rx.recv().await {
             let _ = sender_socket.send_to(&packet.data, packet.addr).await;
@@ -726,20 +736,10 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     });
     
     // Main receive loop
-    let mut buf = [0u8; 1024];
-
     
-    loop {
 
-        println!("[!]: Starting receving data!");
-        let (size, addr) = socket.recv_from(&mut buf).await?;
-        
-        if size > 0 {
-            let rx_data = &buf[..size];
-            println!("Going to process packet");
-            process_packet(rx_data, addr, &tx).await;
-        } else {
-            println!("Error: no data received.");
-        }
-    }
+    game_loop(game_loop_socket, game_loop_tx).await;
+
+    Ok(())
+
 } 
