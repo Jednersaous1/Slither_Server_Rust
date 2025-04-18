@@ -483,8 +483,12 @@ pub async fn process_packet(data: &[u8], addr: SocketAddr, tx: &mpsc::Sender<Udp
         return;
     }
     
+    println!("{}", message);
+
     // Try to find the player by address
     let player_id_opt = player::find_id_by_addr(&addr);
+
+    // println!("{}", player_id_opt.unwrap_or(0));
     
     match splitted[0] {
         "0" => {
@@ -583,7 +587,10 @@ async fn create_player(addr: SocketAddr, tx: mpsc::Sender<UdpPacket>) -> String 
             msg.push(',');
         }
     }
-    
+
+    println!("{} {}",addr.ip(), addr.port());
+    println!("{}", msg);
+        
     let _ = tx.send(UdpPacket {
         addr,
         data: msg.into_bytes(),
@@ -720,13 +727,21 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     
     // Main receive loop
     let mut buf = [0u8; 1024];
+
+    let mut interval = time::interval(Duration::from_millis(CONST::GAME_LOOP_DELAY as u64));
     
     loop {
+        interval.tick().await;
+
+        println!("[!]: Starting receving data!");
         let (size, addr) = socket.recv_from(&mut buf).await?;
         
         if size > 0 {
             let rx_data = &buf[..size];
+            println!("Going to process packet");
             process_packet(rx_data, addr, &tx).await;
+        } else {
+            println!("Error: no data received.");
         }
     }
 } 
